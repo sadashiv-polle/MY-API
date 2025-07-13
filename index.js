@@ -131,7 +131,7 @@ async function sendFeedbackEmail(feedback, userEmail = "") {
 }
 
 // Scheduled daily motivational emails at 11:48 AM IST (Asia/Kolkata)
-cron.schedule("11 13 * * *", async () => {
+cron.schedule("30 9 * * *", async () => {
   try {
     if (!fs.existsSync("emails.txt")) {
       console.log("No emails.txt file found, skipping scheduled emails.");
