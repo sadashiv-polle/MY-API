@@ -6,6 +6,8 @@ const fs = require("fs");
 const cookieSession = require("cookie-session");
 const rateLimit = require("express-rate-limit");
 const validator = require("validator");
+const http = require("http");
+const https = require("https");
 require('dotenv').config();
 
 const app = express();
@@ -15,6 +17,18 @@ const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD;
 const SESSION_KEY = process.env.SESSION_KEY;
+const ENABLE_HTTPS = process.env.ENABLE_HTTPS === 'true';
+
+// Log environment variables for debugging
+console.log("Environment Variables:", {
+  EMAIL_USER: EMAIL_USER ? "Set" : "Not set",
+  EMAIL_PASS: EMAIL_PASS ? "Set" : "Not set",
+  DASHBOARD_PASSWORD: DASHBOARD_PASSWORD ? "Set" : "Not set",
+  SESSION_KEY: SESSION_KEY ? "Set" : "Not set",
+  NODE_ENV: process.env.NODE_ENV,
+  ENABLE_HTTPS: ENABLE_HTTPS,
+  PORT
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -28,11 +42,11 @@ app.use('/api/', rateLimit({
 app.use(
   cookieSession({
     name: "session",
-    keys: [SESSION_KEY],
+    keys: [SESSION_KEY || "fallback-secret-key"], // Fallback to prevent crashes
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
     sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
+    secure: ENABLE_HTTPS // Use ENABLE_HTTPS instead of NODE_ENV
   })
 );
 
@@ -43,11 +57,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// HTTP to HTTPS redirect (if ENABLE_HTTPS is true)
+if (ENABLE_HTTPS) {
+  app.use((req, res, next) => {
+    if (req.protocol === 'http') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
 function requireLogin(req, res, next) {
   if (req.session && req.session.loggedIn) {
     next();
   } else {
-    res.redirect("/login");
+    res.redirect("/login?error=Please+log+in");
   }
 }
 
@@ -130,7 +154,7 @@ async function sendFeedbackEmail(feedback, userEmail = "") {
   }
 }
 
-// Scheduled daily motivational emails at 11:48 AM IST (Asia/Kolkata)
+// Scheduled daily motivational emails at 9:30 AM IST (Asia/Kolkata)
 cron.schedule("30 9 * * *", async () => {
   try {
     if (!fs.existsSync("emails.txt")) {
@@ -172,7 +196,6 @@ app.get("/api/subscriber-count", (req, res) => {
       .map(e => e.trim())
       .filter(Boolean).length;
   }
-  // Always start from 10
   res.json({ count: count + 10 });
 });
 
@@ -193,7 +216,7 @@ app.get("/", (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
- <title>Daily Dose of Inspiration</title>
+  <title>Daily Dose of Inspiration</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -572,7 +595,6 @@ app.get("/", (req, res) => {
         unsubscribeBtn.textContent = 'Unsubscribe';
       }
     });
-    // Feedback modal open/close
     openFeedbackBtn.addEventListener('click', () => {
       feedbackModal.style.display = 'flex';
       feedbackMsg.textContent = "";
@@ -588,7 +610,6 @@ app.get("/", (req, res) => {
         feedbackModal.style.display = 'none';
       }
     });
-    // Feedback form submit
     feedbackForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const feedback = feedbackBox.value.trim();
@@ -675,6 +696,7 @@ app.get("/login", (req, res) => {
         input, button { font-size: 1.1rem; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 1rem; width: 100%; }
         button { background: #1e40af; color: #fff; border: none; cursor: pointer; }
         button:hover { background: #3b82f6; }
+        .error { color: red; font-weight: 600; }
       </style>
     </head>
     <body>
@@ -682,7 +704,7 @@ app.get("/login", (req, res) => {
         <h2>Dashboard Login</h2>
         <input type="password" name="password" placeholder="Enter dashboard password" required />
         <button type="submit">Login</button>
-        ${req.query.error ? `<div style="color:red;">${req.query.error}</div>` : ''}
+        ${req.query.error ? `<div class="error">${decodeURIComponent(req.query.error)}</div>` : ''}
       </form>
     </body>
     </html>
@@ -691,11 +713,24 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
   const { password } = req.body;
+  console.log("Login attempt - Password received:", password);
+  console.log("DASHBOARD_PASSWORD:", DASHBOARD_PASSWORD);
+  console.log("Session before:", req.session);
+  if (!DASHBOARD_PASSWORD) {
+    console.error("DASHBOARD_PASSWORD is not set in .env");
+    return res.redirect("/login?error=Server+configuration+error");
+  }
+  if (!password) {
+    console.log("No password provided");
+    return res.redirect("/login?error=No+password+provided");
+  }
   if (password === DASHBOARD_PASSWORD) {
     req.session.loggedIn = true;
-    res.redirect("/dashboard");
+    console.log("Password correct, session set:", req.session);
+    return res.redirect("/dashboard");
   } else {
-    res.redirect("/login?error=Incorrect+password");
+    console.log("Password incorrect");
+    return res.redirect("/login?error=Incorrect+password");
   }
 });
 
@@ -963,6 +998,22 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`API running at http://94.136.188.46:${PORT}`);
-});
+// Server setup
+if (ENABLE_HTTPS) {
+  const httpsOptions = {
+    key: fs.readFileSync("/home/certs/privkey.pem"),
+    cert: fs.readFileSync("/home/certs/fullchain.pem")
+  };
+  const httpServer = http.createServer(app);
+  const httpsServer = https.createServer(httpsOptions, app);
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log(`HTTP server running at http://94.136.188.46:${PORT}`);
+  });
+  httpsServer.listen(443, "0.0.0.0", () => {
+    console.log(`HTTPS server running at https://94.136.188.46:443`);
+  });
+} else {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`API running at http://94.136.188.46:${PORT}`);
+  });
+}
