@@ -1113,9 +1113,10 @@ app.get("/about", (req, res) => {
           <b>Stack:</b> Node.js, Express, Nodemailer<br>
           <b>Made by:</b> <a href="https://github.com/sadashivpolle" target="_blank">Sadashiv Polle</a>
         </p>
+        <!--
         <p>
           <b>Source code:</b> <a href="https://github.com/YOUR_GITHUB_URL">GitHub</a>
-        </p>
+        </p>-->
         <hr>
         <!--<p style="font-size:1rem; color:#495;">Contact: 
           <a href="mailto:polle.sadashiv@gmail.com">polle.sadashiv@gmail.com</a>
