@@ -216,7 +216,8 @@ app.get("/", (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Daily Dose of Inspiration</title>
+  <title>Motivica.space</title>
+  <link rel="icon" type="image/png" href="/seo.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -314,12 +315,20 @@ app.get("/", (req, res) => {
       display: flex;
       flex-direction: column;
       align-items: center;
+      transition: max-width 0.4s, width 0.4s;
+    }
+    .card.wide {
+      max-width: 440px !important;
+      width: 96vw !important;
+      transition: max-width 0.4s, width 0.4s;
     }
     .card h3 {
       color: #0e7490;
       margin-bottom: 8px;
       font-size: 1.3rem;
       font-weight: 600;
+      word-break: break-word;
+      word-wrap: break-word;
     }
     .card .count {
       font-size: 2.2rem;
@@ -398,20 +407,21 @@ app.get("/", (req, res) => {
         max-width: 95vw;
         font-size: 1rem;
       }
-      .card {
-        width: 100%;
-        max-width: 95vw;
+      .card, .card.wide {
+        width: 100% !important;
+        max-width: 95vw !important;
       }
     }
   </style>
 </head>
 <body>
-  <h1>🚀Welcome to Your Daily Dose of Inspiration!</h1>
+  <h1>🚀 Welcome to Your Daily Dose of Inspiration!</h1>
   <p><span class="highlight">Simple, powerful, and made just for you.</span></p>
   <div id="subscriberCard" class="card">
-    <h3>Subscribers</h3>
+    <h3 id="subscriberHeader">Subscribers</h3>
     <div id="subscriberCount" class="count">...</div>
   </div>
+
   <div>
     <button id="helloBtn" class="btn" type="button">Tap Here For Message</button>
     <button id="getDailyMotivationBtn" class="btn" type="button">Get Daily Motivation</button>
@@ -425,8 +435,8 @@ app.get("/", (req, res) => {
     <button id="unsubscribeBtn" class="btn" type="button">Unsubscribe</button>
     <div id="message"></div>
     <p style="margin-top:8px; color:#0e7490; font-weight:600; white-space: nowrap;">
-      <span style="font-size:1.1em;">⏰ Daily lift emails are sent at <b>9:30 AM</b> (IST) to all subscribers.</span>
-    </p>
+      <span style="font-size:1.1em;">⏰ Daily lift emails are sent at <b>9:30 AM</b> (IST) to all subscribers.<span style="font-size:1.1em;">/<a href="/about">About</a></span><p>
+    </span>
   </div>
   <!-- Feedback Modal -->
   <div id="feedbackModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="feedbackTitle">
@@ -436,7 +446,7 @@ app.get("/", (req, res) => {
       <form id="feedbackForm" autocomplete="off">
         <label for="feedbackBox" style="font-weight:600; display:block; margin-bottom:6px;">Your Feedback</label>
         <textarea id="feedbackBox" placeholder="Your feedback here..." required></textarea>
-        <label for="feedbackEmail" style="font-weight:600; display:block; margin-bottom:6px;">Your Email (optional)</label>
+        <label for="feedbackEmail" style="font-weight:600; display:block; margin-bottom:6px;">Your Email And Name</label>
         <input type="email" id="feedbackEmail" placeholder="Your email" />
         <button type="submit" class="btn" style="margin-top:10px; width: 100%;">Send Feedback</button>
         <div id="feedbackMsg" style="margin-top:10px; font-weight:600; min-height: 24px;"></div>
@@ -444,10 +454,14 @@ app.get("/", (req, res) => {
     </div>
   </div>
   <footer>
-    <p>Powered by <a href="/yo.jpeg" target="_blank" rel="noopener noreferrer">Sadashiv Polle</a></p>
+    <p>Powered by <a href="/yo.jpeg" target="_blank" rel="noopener noreferrer">Sadashiv Polle</a>
+    </p>
   </footer>
   <script>
     const helloBtn = document.getElementById('helloBtn');
+    const subscriberHeader = document.getElementById('subscriberHeader');
+    const subscriberCount = document.getElementById('subscriberCount');
+    const subscriberCard = document.getElementById('subscriberCard');
     const getDailyMotivationBtn = document.getElementById('getDailyMotivationBtn');
     const sendBtn = document.getElementById('sendEmailBtn');
     const subscribeBtn = document.getElementById('subscribeBtn');
@@ -467,9 +481,9 @@ app.get("/", (req, res) => {
       try {
         const res = await fetch('/api/subscriber-count');
         const data = await res.json();
-        document.getElementById('subscriberCount').textContent = data.count;
+        subscriberCount.textContent = data.count;
       } catch (e) {
-        document.getElementById('subscriberCount').textContent = 'N/A';
+        subscriberCount.textContent = 'N/A';
       }
     }
     updateSubscriberCount();
@@ -492,19 +506,31 @@ app.get("/", (req, res) => {
       const json = await response.json();
       return { status: response.status, data: json };
     }
+
+    // HELLO button logic
     helloBtn.addEventListener('click', async () => {
       helloBtn.disabled = true;
       helloBtn.textContent = 'Loading...';
       try {
         const res = await fetch('/api/hello');
         const data = await res.json();
-        showMessage(data.message, '#0e7490', 6000);
+        subscriberHeader.textContent = data.message;
+        subscriberCount.style.display = "none";
+        subscriberCard.classList.add("wide");
+        if(window.subscriberMsgTimeout) clearTimeout(window.subscriberMsgTimeout);
+        window.subscriberMsgTimeout = setTimeout(() => {
+          subscriberHeader.textContent = 'Subscribers';
+          subscriberCount.style.display = "";
+          subscriberCard.classList.remove("wide");
+        }, 6000);
       } catch (e) {
         showMessage('Error fetching message!', '#dc2626', 4000);
       }
       helloBtn.disabled = false;
       helloBtn.textContent = 'Tap Here For Message';
     });
+
+    // Motivation button logic
     getDailyMotivationBtn.addEventListener('click', async () => {
       getDailyMotivationBtn.disabled = true;
       getDailyMotivationBtn.textContent = 'Loading...';
@@ -512,7 +538,15 @@ app.get("/", (req, res) => {
         const res = await fetch('/api/motivate');
         const data = await res.json();
         if (data.quote && data.author) {
-          showMessage('"' + data.quote + '"\\n\\n- ' + data.author, '#0e7490', 6000);
+          subscriberHeader.textContent = '"' + data.quote + '" — ' + data.author;
+          subscriberCount.style.display = "none";
+          subscriberCard.classList.add("wide");
+          if(window.subscriberMsgTimeout) clearTimeout(window.subscriberMsgTimeout);
+          window.subscriberMsgTimeout = setTimeout(() => {
+            subscriberHeader.textContent = 'Subscribers';
+            subscriberCount.style.display = "";
+            subscriberCard.classList.remove("wide");
+          }, 6000);
         } else {
           showMessage('Could not fetch a motivational quote right now.', '#dc2626', 4000);
         }
@@ -522,6 +556,7 @@ app.get("/", (req, res) => {
       getDailyMotivationBtn.disabled = false;
       getDailyMotivationBtn.textContent = 'Get Daily Motivation';
     });
+
     if (sendBtn) {
       sendBtn.addEventListener('click', async () => {
         const email = emailInput.value.trim();
@@ -646,6 +681,7 @@ app.get("/", (req, res) => {
   `);
 });
 
+
 // ======= TOGGLE ROUTE FOR SEND TO EMAIL BUTTON =======
 app.post("/dashboard/toggle-send-to-email", requireLogin, (req, res) => {
   const show = req.body.showSendToEmail === "true" || req.body.showSendToEmail === "on";
@@ -691,6 +727,7 @@ app.get("/login", (req, res) => {
     <head>
       <title>Dashboard Login</title>
       <style>
+      <link rel="icon" type="image/png" href="/seo.png">
         body { font-family: sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; }
         form { background: #fff; padding: 2rem; border-radius: 10px; box-shadow: 0 2px 8px #0001; }
         input, button { font-size: 1.1rem; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 1rem; width: 100%; }
@@ -758,84 +795,337 @@ app.get("/dashboard", requireLogin, (req, res) => {
   const failed = readList("failed_emails.txt");
 
   res.send(`
+    <!DOCTYPE html>
     <html>
     <head>
       <title>Dashboard</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
       <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 2rem; }
-        .container { max-width: 900px; margin: auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #0001; padding: 2rem; }
-        h1 { color: #1e40af; }
-        ul { background: #f9f9f9; border-radius: 8px; padding: 1rem; }
-        li { margin-bottom: 4px; }
-        a.button, button.button { display: inline-block; background: #1e40af; color: #fff; padding: 10px 24px; border-radius: 8px; text-decoration: none; margin: 10px 0; border: none; cursor: pointer; }
-        a.button:hover, button.button:hover { background: #3b82f6; }
-        .list-section { margin-bottom: 30px; }
-        form.inline { display: inline; }
-        textarea, input[type="text"] { width: 280px; max-width: 90vw; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-right: 8px; margin-bottom: 6px;}
-        textarea { min-height: 40px; }
-        .email-list { max-height: 180px; overflow-y: auto; }
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: #f0f4f8;
+          padding: 0;
+          margin: 0;
+          min-height: 100vh;
+        }
+        .top-bar {
+          background: #1e40af;
+          color: #fff;
+          padding: 1.2rem 0.5rem 1.2rem 2.4rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .top-bar h1 {
+          margin: 0;
+          font-size: 2rem;
+          letter-spacing: 1px;
+        }
+        .top-bar .actions {
+          margin-right: 2.4rem;
+        }
+        .top-bar a.button {
+          margin-left: 0.7rem;
+        }
+        .dashboard-container {
+          max-width: 1100px;
+          margin: 32px auto;
+          padding: 0 1rem 2rem;
+        }
+        .toggle-row {
+          margin: 30px 0 18px 0;
+          padding: 18px 1rem;
+          background: #f0f7fe;
+          border-radius: 12px;
+          font-size: 1.08rem;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          border: 1px solid #dbeafe;
+        }
+        .email-cards {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 2rem;
+          margin-bottom: 2.2rem;
+        }
+        .email-card {
+          background: #fff;
+          border-radius: 14px;
+          box-shadow: 0 7px 18px 0 rgba(30, 64, 175, 0.09), 0 0.5px 2.5px #123d8835;
+          flex: 1 1 300px;
+          min-width: 310px;
+          max-width: 390px;
+          padding: 1.4rem 1.3rem;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .email-card h2 {
+          font-size: 1.33rem;
+          margin: 0 0 0.9rem 0;
+          color: #1e40af;
+          letter-spacing: 0.1px;
+          font-weight: 700;
+        }
+        .count-badge {
+          background: #dbeafe;
+          color: #1e40af;
+          border-radius: 6px;
+          font-size: 1.13rem;
+          font-weight: 700;
+          padding: 6px 18px 7px 18px;
+          margin-bottom: 1.14rem;
+          display: inline-block;
+          min-width: 34px;
+          text-align: center;
+        }
+        .email-list {
+          list-style-type: none;
+          padding: 0 0 0 2px;
+          margin: 0 0 9px 0;
+          max-height: 220px;
+          overflow-y: auto;
+          width: 100%;
+        }
+        .email-list li {
+          margin: 0 0 0.5rem 0;
+          background: #f9fafb;
+          border-radius: 7px;
+          padding: 8px 9px;
+          font-size: 1.05rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          transition: background 0.2s;
+          border: 1px solid #e6eaff;
+        }
+        .email-list li:hover {
+          background: #e0edfb;
+        }
+        form.inline {
+          display: inline;
+          margin: 0;
+        }
+        .button, a.button {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff !important;
+          padding: 8px 18px;
+          border-radius: 8px;
+          border: none;
+          text-decoration: none;
+          font-size: 1.08rem;
+          font-weight: 600;
+          margin: 3px 0 3px 5px;
+          cursor: pointer;
+          transition: background 0.18s;
+        }
+        .button:hover, a.button:hover {
+          background: #1e40af;
+        }
+        .mini-btn {
+          padding: 4px 13px !important;
+          font-size: 0.97rem !important;
+          border-radius: 7px;
+        }
+        .form-block {
+          width: 100%;
+          margin: 15px 0 6px 0;
+          background: #f4f7fe;
+          border-radius: 8px;
+          padding: 12px 8px 12px 15px;
+          border: 1px solid #d2dffc;
+          box-sizing: border-box;
+        }
+        .form-block label {
+          font-weight: 600;
+          margin-right: 8px;
+        }
+        .form-block input[type="text"], .form-block textarea {
+          width: 92%;
+          max-width: 410px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          border: 1.2px solid #cdddfa;
+          margin-bottom: 5px;
+          margin-right: 0;
+          font-size: 1rem;
+        }
+        .form-block textarea {
+          min-height: 36px;
+          resize: vertical;
+          font-family: inherit;
+        }
+        @media (max-width: 1050px) {
+          .dashboard-container { max-width: 99vw; }
+          .email-cards { gap: 1rem;}
+        }
+        @media (max-width: 720px) {
+          .dashboard-container { padding: 0.3rem; }
+          .email-cards { flex-direction: column; }
+          .email-card { min-width: 95vw; max-width: 99vw; }
+        }
+        @media (max-width: 480px) {
+          .top-bar, .dashboard-container { padding: 0 !important; }
+          .top-bar .actions { margin-right: 7px; }
+          .dashboard-container { margin: 8px 0; }
+          .toggle-row { flex-direction: column; gap: 7px;}
+          .email-card { padding: 12px 5px; }
+        }
       </style>
     </head>
     <body>
-      <div class="container">
+      <div class="top-bar">
         <h1>Dashboard</h1>
-        <a class="button" href="/logout">Logout</a>
-        <a class="button" href="/">Back to Home</a>
-        <div style="margin:20px 0;">
-          <form method="POST" action="/dashboard/toggle-send-to-email">
-            <label style="font-weight:600; font-size:1.1em;">
-              <input type="checkbox" name="showSendToEmail" value="true" ${showSendToEmail ? "checked" : ""} onchange="this.form.submit()" />
-              Show "Send to Email" on Homepage
-            </label>
-          </form>
+        <div class="actions">
+          <a class="button" href="/logout" tabindex="1">Logout</a>
+          <a class="button" href="/" tabindex="2">Back to Home</a>
         </div>
-        ${["Subscribed Emails", "Unsubscribed Emails", "Failed Emails"]
-          .map((title, idx) => {
-            const list = [subscribed, unsubscribed, failed][idx];
-            const file = ["emails.txt", "unsubscribed.txt", "failed_emails.txt"][idx];
-            const listId = ["subscribed", "unsubscribed", "failed"][idx];
-            return `
-            <div class="list-section">
-              <h2>${title} (${list.length})</h2>
-              <ul class="email-list" id="list-${listId}">
-                ${list
-                  .map(
-                    (e, i) =>
-                      `<li>
-                        ${e}
-                        <form class="inline" method="POST" action="/dashboard/delete">
-                          <input type="hidden" name="email" value="${e}" />
-                          <input type="hidden" name="list" value="${listId}" />
-                          <button class="button" type="submit" onclick="return confirm('Delete this email?')">Delete</button>
-                        </form>
-                      </li>`
-                  )
-                  .join("") || "<li>None</li>"}
-              </ul>
-              <form method="POST" action="/dashboard/add">
-                <input type="text" name="email" placeholder="Add single email" required />
+      </div>
+      <div class="dashboard-container">
+        <form method="POST" action="/dashboard/toggle-send-to-email" class="toggle-row">
+          <label style="font-weight:600;">
+            <input type="checkbox" name="showSendToEmail" value="true" ${showSendToEmail ? "checked" : ""} onchange="this.form.submit()" />
+            Show "Send to Email" on Homepage
+          </label>
+        </form>
+        <div class="email-cards">
+        ${["Subscribed", "Unsubscribed", "Failed"].map((title, idx) => {
+          const list = [subscribed, unsubscribed, failed][idx];
+          const listId = ["subscribed", "unsubscribed", "failed"][idx];
+          const prettyTitle = title + " Emails";
+          return `
+          <div class="email-card" aria-labelledby="heading-${listId}">
+            <h2 id="heading-${listId}">${prettyTitle}</h2>
+            <div class="count-badge">${list.length}</div>
+            <ul class="email-list" id="list-${listId}">
+              ${list.map(e =>
+                `<li>
+                  <span style="word-break: break-all;">${e}</span>
+                  <form class="inline" method="POST" action="/dashboard/delete">
+                    <input type="hidden" name="email" value="${e}" />
+                    <input type="hidden" name="list" value="${listId}" />
+                    <button class="button mini-btn" type="submit" title="Delete" aria-label="Delete email address">&times; Delete</button>
+                  </form>
+                </li>`).join("") || "<li style='color:#444;'>None</li>"}
+            </ul>
+            <div class="form-block">
+              <form method="POST" action="/dashboard/add" style="display:inline-block; width: 100%;">
+                <label for="add-${listId}">Add Email:</label>
+                <input type="text" id="add-${listId}" name="email" placeholder="Add single email" required autocomplete="off" />
                 <input type="hidden" name="list" value="${listId}" />
-                <button class="button" type="submit">Add</button>
-              </form>
-              <form method="POST" action="/dashboard/bulkadd" style="margin-top:6px;">
-                <textarea name="emails" placeholder="Bulk add: one per line or comma separated"></textarea>
-                <input type="hidden" name="list" value="${listId}" />
-                <button class="button" type="submit">Bulk Add</button>
-              </form>
-              <form method="POST" action="/dashboard/bulkdelete" style="margin-top:6px;">
-                <textarea name="emails" placeholder="Bulk delete: one per line or comma separated"></textarea>
-                <input type="hidden" name="list" value="${listId}" />
-                <button class="button" type="submit" onclick="return confirm('Delete these emails?')">Bulk Delete</button>
+                <button class="button mini-btn" type="submit">Add</button>
               </form>
             </div>
-            `;
-          })
-          .join("")}
+            <div class="form-block">
+              <form method="POST" action="/dashboard/bulkadd" style="display:inline-block; width:100%;">
+                <label for="bulkadd-${listId}">Bulk Add:</label><br>
+                <textarea id="bulkadd-${listId}" name="emails" placeholder="Emails: one per line or comma separated" style="margin-top:5px; width:97%;"></textarea>
+                <input type="hidden" name="list" value="${listId}" />
+                <button class="button mini-btn" type="submit" style="margin-top:7px;">Bulk Add</button>
+              </form>
+            </div>
+            <div class="form-block">
+              <form method="POST" action="/dashboard/bulkdelete" style="display:inline-block; width:100%;">
+                <label for="bulkdel-${listId}">Bulk Delete:</label><br>
+                <textarea id="bulkdel-${listId}" name="emails" placeholder="Emails: one per line or comma separated" style="margin-top:5px; width:97%;"></textarea>
+                <input type="hidden" name="list" value="${listId}" />
+                <button class="button mini-btn" type="submit" style="margin-top:7px;background:#dc2626;">Bulk Delete</button>
+              </form>
+            </div>
+          </div>
+          `;
+        }).join("")}
+        </div>
       </div>
     </body>
     </html>
   `);
 });
+
+app.get("/about", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>About | Motivica.space</title>
+      <link rel="icon" type="image/png" href="/seo.png">
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: #f8fafc;
+          color: #232323;
+          margin: 0;
+          padding: 0;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .container {
+          max-width: 700px;
+          margin: 30px auto;
+          padding: 2.2rem 1.2rem 2.2rem 1.2rem;
+          background: #fff;
+          border-radius: 14px;
+          box-shadow: 0 4px 18px 0 rgba(30, 64, 175, 0.09), 0 0.5px 2.5px #123d8835;
+        }
+        h1 {
+          color: #1e40af;
+          margin-top: 0;
+          font-size: 2rem;
+          margin-bottom: 14px;
+        }
+        a {
+          color: #1e40af;
+          text-decoration: none;
+        }
+        a:hover {
+          text-decoration: underline;
+        }
+        .backlink {
+          display: block;
+          margin: 0 0 18px 0;
+        }
+        @media (max-width: 700px) {
+          .container { max-width: 97vw; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <a class="backlink" href="/">&larr; Back to Home</a>
+        <h1>About This Project</h1>
+        <p>
+          <b>Motivica.space</b> is a simple, open-source web service  created by sadashiv polle that delivers daily motivation quotes to your inbox and offers a minimal API to inspire anyone at any time.<br><br>
+          You can subscribe to daily email lifts, get instant motivation, and manage your subscription—all privacy-friendly and free.<br><br>
+          <b>Features:</b>
+          <ul>
+            <li>Daily motivational quotes delivered to your email at 9:30 AM (IST)</li>
+            <li>Tap to see instant web-based motivational messages</li>
+            <li>Easy subscribe/unsubscribe and one-click personal quote emails</li>
+            <li><b>Everything is privacy-friendly, simple, and user-focused</b></li>
+          </ul>
+          <b>Stack:</b> Node.js, Express, Nodemailer<br>
+          <b>Made by:</b> <a href="https://github.com/sadashivpolle" target="_blank">Sadashiv Polle</a>
+        </p>
+        <p>
+          <b>Source code:</b> <a href="https://github.com/YOUR_GITHUB_URL">GitHub</a>
+        </p>
+        <hr>
+        <!--<p style="font-size:1rem; color:#495;">Contact: 
+          <a href="mailto:polle.sadashiv@gmail.com">polle.sadashiv@gmail.com</a>
+        </p>-->
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 
 app.post("/dashboard/add", requireLogin, (req, res) => {
   const { email, list } = req.body;
